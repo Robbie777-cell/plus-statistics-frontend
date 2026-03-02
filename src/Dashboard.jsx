@@ -120,6 +120,203 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
+// ─── SESSION DETAIL MODAL ────────────────────────────────────────────────────
+function SessionModal({ session, index, onClose }) {
+  if (!session) return null;
+
+  const statusColor = session.kli_status === "OK" ? COLORS.lime : COLORS.magenta;
+  const statusLabel = session.kli_status === "OK" ? "ÓPTIMO" : "REVISAR";
+
+  const formatDuration = (secs) => {
+    if (!secs) return "—";
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    return h > 0 ? `${h}h ${m}m` : `${m}m ${s}s`;
+  };
+
+  const formatDistance = (meters) => {
+    if (!meters) return "—";
+    return meters >= 1000 ? `${(meters / 1000).toFixed(2)} km` : `${meters} m`;
+  };
+
+  const formatPace = (metersPerSec) => {
+    if (!metersPerSec || metersPerSec === 0) return "—";
+    const minPerKm = 1000 / (metersPerSec * 60);
+    const min = Math.floor(minPerKm);
+    const sec = Math.round((minPerKm - min) * 60);
+    return `${min}:${sec.toString().padStart(2, "0")} min/km`;
+  };
+
+  const metrics = [
+    { label: "Distancia", value: formatDistance(session.distance), color: COLORS.cyan, icon: "📍" },
+    { label: "Duración", value: formatDuration(session.duration), color: COLORS.lime, icon: "⏱" },
+    { label: "Pace", value: formatPace(session.speed), color: "#ffaa00", icon: "⚡" },
+    { label: "Cadencia", value: session.cadence ? `${session.cadence.toFixed(0)} spm` : "—", color: COLORS.cyan, icon: "🦶" },
+    { label: "KLI", value: session.kli ? session.kli.toFixed(2) : "—", color: statusColor, icon: "🦵" },
+    { label: "Velocidad", value: session.speed ? `${session.speed.toFixed(2)} m/s` : "—", color: COLORS.magenta, icon: "🏃" },
+    { label: "Pasos totales", value: session.total_steps ? session.total_steps.toLocaleString() : "—", color: COLORS.lime, icon: "👟" },
+    { label: "Carga acum.", value: session.cumulative_load ? session.cumulative_load.toFixed(1) : "—", color: "#ffaa00", icon: "📊" },
+  ];
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 1000,
+        background: "rgba(2,4,8,0.85)",
+        backdropFilter: "blur(8px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 24,
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          ...cardStyle,
+          width: "100%", maxWidth: 600,
+          border: `1px solid ${COLORS.cyan}40`,
+          boxShadow: `0 0 60px ${COLORS.cyan}15, 0 0 120px ${COLORS.purple}10`,
+          maxHeight: "90vh",
+          overflowY: "auto",
+        }}
+      >
+        <div style={scanlineStyle} />
+        <div style={{ position: "relative", zIndex: 1 }}>
+
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
+            <div>
+              <div style={{ fontSize: 10, letterSpacing: 4, color: COLORS.muted, marginBottom: 6, textTransform: "uppercase" }}>
+                Sesión #{index + 1}
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 900, fontFamily: "Orbitron, monospace", ...glowStyle(COLORS.cyan) }}>
+                {session.activity_name || session.device || "Sesión de Running"}
+              </div>
+              <div style={{ fontSize: 11, color: COLORS.muted, marginTop: 4 }}>
+                {session.activity_type && `${session.activity_type} · `}
+                {session.date?.slice(0, 10)}
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{
+                padding: "4px 12px",
+                background: `${statusColor}15`,
+                border: `1px solid ${statusColor}40`,
+                borderRadius: 6,
+                color: statusColor,
+                fontSize: 10,
+                fontFamily: "Orbitron, monospace",
+                letterSpacing: 2,
+              }}>
+                {statusLabel}
+              </div>
+              <button
+                onClick={onClose}
+                style={{
+                  width: 32, height: 32, borderRadius: "50%",
+                  background: `${COLORS.magenta}15`,
+                  border: `1px solid ${COLORS.magenta}40`,
+                  color: COLORS.magenta,
+                  fontSize: 16, cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontFamily: "monospace",
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div style={{ height: 1, background: `linear-gradient(90deg, transparent, ${COLORS.cyan}40, transparent)`, marginBottom: 24 }} />
+
+          {/* Metrics Grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 24 }}>
+            {metrics.map(({ label, value, color, icon }) => (
+              <div key={label} style={{
+                padding: "14px 16px",
+                background: "#060d1a",
+                borderRadius: 10,
+                border: `1px solid ${COLORS.cardBorder}`,
+              }}>
+                <div style={{ fontSize: 10, color: COLORS.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 6 }}>
+                  {icon} {label}
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 900, fontFamily: "Orbitron, monospace", color, lineHeight: 1 }}>
+                  {value}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Source info */}
+          <div style={{
+            padding: "12px 16px",
+            background: `#fc4c0210`,
+            border: `1px solid #fc4c0230`,
+            borderRadius: 10,
+            display: "flex", alignItems: "center", gap: 12,
+          }}>
+            <span style={{ fontSize: 20 }}>🏅</span>
+            <div>
+              <div style={{ fontSize: 11, color: "#fc4c02", fontFamily: "Orbitron, monospace", letterSpacing: 2 }}>
+                {session.strava_activity_id ? "IMPORTADO DE STRAVA" : "SENSOR FÍSICO"}
+              </div>
+              {session.strava_activity_id && (
+                <div style={{ fontSize: 10, color: COLORS.muted, marginTop: 2 }}>
+                  Activity ID: {session.strava_activity_id}
+                </div>
+              )}
+            </div>
+            {session.strava_activity_id && (
+              <a
+                href={`https://www.strava.com/activities/${session.strava_activity_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  marginLeft: "auto",
+                  padding: "6px 14px",
+                  background: "#fc4c0220",
+                  border: "1px solid #fc4c0260",
+                  borderRadius: 6,
+                  color: "#fc4c02",
+                  fontSize: 10,
+                  fontFamily: "Orbitron, monospace",
+                  letterSpacing: 2,
+                  textDecoration: "none",
+                  cursor: "pointer",
+                }}
+              >
+                VER EN STRAVA →
+              </a>
+            )}
+          </div>
+
+          {/* Biomechanics note if no sensor data */}
+          {(!session.cadence || session.cadence === 0) && (
+            <div style={{
+              marginTop: 12,
+              padding: "12px 16px",
+              background: `${COLORS.purple}10`,
+              border: `1px solid ${COLORS.purple}30`,
+              borderRadius: 10,
+            }}>
+              <div style={{ fontSize: 10, color: COLORS.purple, fontFamily: "Orbitron, monospace", letterSpacing: 2, marginBottom: 4 }}>
+                ⚡ DATOS BIOMECÁNICOS PENDIENTES
+              </div>
+              <div style={{ fontSize: 11, color: COLORS.muted }}>
+                Cadencia y KLI estarán disponibles al conectar el sensor físico +Statistics.
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function Dashboard() {
   const [token, setToken] = useState("");
   const [email, setEmail] = useState("");
@@ -132,6 +329,8 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("dashboard");
   const [scanY, setScanY] = useState(0);
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [selectedIndex, setSelectedIndex] = useState(null);
 
   useEffect(() => {
     const interval = setInterval(() => setScanY(y => (y + 1) % 100), 30);
@@ -249,6 +448,15 @@ export default function Dashboard() {
       <GlowOrb color={COLORS.purple} top={300} right={-200} size={600} opacity={0.06} />
       <GlowOrb color={COLORS.magenta} bottom={-100} left={200} size={400} opacity={0.05} />
 
+      {/* Modal */}
+      {selectedSession && (
+        <SessionModal
+          session={selectedSession}
+          index={selectedIndex}
+          onClose={() => { setSelectedSession(null); setSelectedIndex(null); }}
+        />
+      )}
+
       {/* Scan line */}
       <div style={{ position: "fixed", top: `${scanY}%`, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${COLORS.cyan}30, transparent)`, pointerEvents: "none", zIndex: 999 }} />
 
@@ -277,7 +485,6 @@ export default function Dashboard() {
         {/* Dashboard Tab */}
         {activeTab === "dashboard" && (
           <>
-            {/* ML Alert Banner */}
             {mlData && (
               <div style={{ ...cardStyle, marginBottom: 24, borderColor: mlData.top_alert === "LOW" ? `${COLORS.lime}40` : `${COLORS.magenta}40`, display: "flex", alignItems: "center", gap: 16 }}>
                 <div style={scanlineStyle} />
@@ -291,22 +498,18 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Top metrics */}
             <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
-              <MetricCard label="Sesiones" value={stats?.total_sessions || 0} unit="total" color={COLORS.cyan} icon="◈" sublabel="Historial completo" />
-              <MetricCard label="Cadencia avg" value={stats?.avg_cadence?.toFixed(0) || "—"} unit="spm" color={COLORS.lime} icon="⬡" sublabel="Pasos por minuto" />
-              <MetricCard label="Pasos totales" value={stats?.total_steps ? (stats.total_steps / 1000).toFixed(0) + "k" : "—"} unit="" color={COLORS.magenta} icon="◇" sublabel="Acumulado" />
-              <MetricCard label="KLI promedio" value={stats?.avg_kli?.toFixed(1) || "—"} unit="" color="#ffaa00" icon="◉" sublabel="Carga rodilla" />
+              <MetricCard label="Sesiones" value={stats?.total_sessions || 0} unit="total" color={COLORS.cyan} icon="⚡" sublabel="Historial completo" />
+              <MetricCard label="Cadencia avg" value={stats?.avg_cadence?.toFixed(0) || "—"} unit="spm" color={COLORS.lime} icon="🦶" sublabel="Pasos por minuto" />
+              <MetricCard label="Pasos totales" value={stats?.total_steps ? (stats.total_steps / 1000).toFixed(0) + "k" : "—"} unit="" color={COLORS.magenta} icon="👟" sublabel="Acumulado" />
+              <MetricCard label="KLI promedio" value={stats?.avg_kli?.toFixed(1) || "—"} unit="" color="#ffaa00" icon="🦵" sublabel="Carga rodilla" />
             </div>
 
-            {/* Main grid */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 340px", gap: 20, marginBottom: 20 }}>
-
-              {/* Cadencia chart */}
               <div style={cardStyle}>
                 <div style={scanlineStyle} />
                 <div style={{ position: "relative", zIndex: 1 }}>
-                  <div style={{ fontSize: 10, letterSpacing: 3, color: COLORS.muted, marginBottom: 16, textTransform: "uppercase" }}>◈ Cadencia por sesión</div>
+                  <div style={{ fontSize: 10, letterSpacing: 3, color: COLORS.muted, marginBottom: 16, textTransform: "uppercase" }}>⚡ Cadencia por sesión</div>
                   <ResponsiveContainer width="100%" height={200}>
                     <AreaChart data={chartData}>
                       <defs>
@@ -325,11 +528,10 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* KLI chart */}
               <div style={cardStyle}>
                 <div style={scanlineStyle} />
                 <div style={{ position: "relative", zIndex: 1 }}>
-                  <div style={{ fontSize: 10, letterSpacing: 3, color: COLORS.muted, marginBottom: 16, textTransform: "uppercase" }}>◉ Carga de rodilla (KLI)</div>
+                  <div style={{ fontSize: 10, letterSpacing: 3, color: COLORS.muted, marginBottom: 16, textTransform: "uppercase" }}>🦵 Carga de rodilla (KLI)</div>
                   <ResponsiveContainer width="100%" height={200}>
                     <LineChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" stroke={COLORS.cardBorder} />
@@ -342,7 +544,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* ML Panel */}
               {mlData && (
                 <div style={cardStyle}>
                   <div style={scanlineStyle} />
@@ -367,12 +568,11 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* Bottom: Radar + Recovery */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
               <div style={cardStyle}>
                 <div style={scanlineStyle} />
                 <div style={{ position: "relative", zIndex: 1 }}>
-                  <div style={{ fontSize: 10, letterSpacing: 3, color: COLORS.muted, marginBottom: 8, textTransform: "uppercase" }}>⬡ Radar de rendimiento</div>
+                  <div style={{ fontSize: 10, letterSpacing: 3, color: COLORS.muted, marginBottom: 8, textTransform: "uppercase" }}>🦶 Radar de rendimiento</div>
                   <ResponsiveContainer width="100%" height={220}>
                     <RadarChart data={radarData}>
                       <PolarGrid stroke={COLORS.cardBorder} />
@@ -386,7 +586,7 @@ export default function Dashboard() {
               <div style={cardStyle}>
                 <div style={scanlineStyle} />
                 <div style={{ position: "relative", zIndex: 1 }}>
-                  <div style={{ fontSize: 10, letterSpacing: 3, color: COLORS.muted, marginBottom: 16, textTransform: "uppercase" }}>◇ Carga acumulada</div>
+                  <div style={{ fontSize: 10, letterSpacing: 3, color: COLORS.muted, marginBottom: 16, textTransform: "uppercase" }}>👟 Carga acumulada</div>
                   <ResponsiveContainer width="100%" height={220}>
                     <AreaChart data={chartData}>
                       <defs>
@@ -413,15 +613,44 @@ export default function Dashboard() {
           <div style={cardStyle}>
             <div style={scanlineStyle} />
             <div style={{ position: "relative", zIndex: 1 }}>
-              <div style={{ fontSize: 10, letterSpacing: 3, color: COLORS.muted, marginBottom: 20, textTransform: "uppercase" }}>◈ Historial de sesiones</div>
+              <div style={{ fontSize: 10, letterSpacing: 3, color: COLORS.muted, marginBottom: 4, textTransform: "uppercase" }}>⚡ Historial de sesiones</div>
+              <div style={{ fontSize: 11, color: COLORS.muted, marginBottom: 20 }}>Haz clic en una sesión para ver los detalles completos</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {sessions.map((s, i) => (
-                  <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "12px 16px", background: "#060d1a", borderRadius: 8, border: `1px solid ${COLORS.cardBorder}`, transition: "border-color 0.2s" }}>
+                  <div
+                    key={s.id}
+                    onClick={() => { setSelectedSession(s); setSelectedIndex(i); }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 16,
+                      padding: "12px 16px",
+                      background: "#060d1a",
+                      borderRadius: 8,
+                      border: `1px solid ${COLORS.cardBorder}`,
+                      cursor: "pointer",
+                      transition: "border-color 0.2s, background 0.2s",
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = `${COLORS.cyan}60`;
+                      e.currentTarget.style.background = `${COLORS.cyan}08`;
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = COLORS.cardBorder;
+                      e.currentTarget.style.background = "#060d1a";
+                    }}
+                  >
                     <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "Orbitron, monospace", width: 24 }}>#{i + 1}</div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, color: COLORS.text }}>{s.activity_name || s.device || "Sesión"}</div>
                       <div style={{ fontSize: 10, color: COLORS.muted }}>{s.date?.slice(0, 10)}</div>
                     </div>
+                    {s.distance && (
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: 12, color: COLORS.lime, fontFamily: "Orbitron, monospace" }}>
+                          {s.distance >= 1000 ? `${(s.distance / 1000).toFixed(2)} km` : `${s.distance} m`}
+                        </div>
+                        <div style={{ fontSize: 10, color: COLORS.muted }}>distancia</div>
+                      </div>
+                    )}
                     <div style={{ textAlign: "right" }}>
                       <div style={{ fontSize: 12, color: COLORS.cyan, fontFamily: "Orbitron, monospace" }}>{s.cadence?.toFixed(0) || "—"} spm</div>
                       <div style={{ fontSize: 10, color: COLORS.muted }}>cadencia</div>
@@ -431,6 +660,7 @@ export default function Dashboard() {
                       <div style={{ fontSize: 10, color: COLORS.muted }}>KLI</div>
                     </div>
                     <div style={{ width: 8, height: 8, borderRadius: "50%", background: s.kli_status === "OK" ? COLORS.lime : COLORS.magenta, boxShadow: `0 0 8px ${s.kli_status === "OK" ? COLORS.lime : COLORS.magenta}` }} />
+                    <div style={{ fontSize: 14, color: COLORS.muted }}>›</div>
                   </div>
                 ))}
               </div>
@@ -444,7 +674,7 @@ export default function Dashboard() {
             <div style={cardStyle}>
               <div style={scanlineStyle} />
               <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 20 }}>
-                <div style={{ width: 48, height: 48, borderRadius: 12, background: "#fc4c0220", border: "1px solid #fc4c0240", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🟠</div>
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: "#fc4c0220", border: "1px solid #fc4c0240", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🏅</div>
                 <div>
                   <div style={{ fontSize: 16, fontWeight: 700, fontFamily: "Orbitron, monospace", color: COLORS.text }}>Strava Conectado</div>
                   <div style={{ fontSize: 11, color: COLORS.muted }}>{sessions.length} actividades importadas</div>
