@@ -27,9 +27,9 @@ const fmt = {
     const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = Math.floor(s % 60);
     return h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${sec}s` : `${sec}s`;
   },
-  distance: (m) => {
-    if (!m) return "—";
-    return m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.round(m)} m`;
+  distance: (km) => {
+    if (!km || km === 0) return "—";
+    return `${(+km).toFixed(2)} km`;
   },
   pace: (ms) => {
     if (!ms || ms === 0) return "—";
@@ -113,7 +113,7 @@ function SessionModal({ session, index, onClose }) {
   const sc = ok ? C.lime : "#ff4444";
 
   const fields = [
-    { label: "Distancia", value: fmt.distance(session.distance) },
+    { label: "Distancia", value: fmt.distance(session.distance_km) },
     { label: "Duración", value: fmt.duration(session.duration) },
     { label: "Pace", value: fmt.pace(session.speed) !== "—" ? `${fmt.pace(session.speed)} min/km` : "—" },
     { label: "Cadencia", value: session.cadence ? `${session.cadence.toFixed(0)} spm` : "—" },
@@ -282,16 +282,22 @@ export default function Dashboard() {
     setLoading(true);
     try {
       const h = { Authorization: `Bearer ${tk}`, "Content-Type": "application/json" };
-      const [sR, stR, mlR] = await Promise.all([
+      const [sR, stR] = await Promise.all([
         fetch(`${API}/sessions/history?limit=50`, { headers: h }),
         fetch(`${API}/sessions/stats`, { headers: h }),
-        fetch(`${API}/sessions/ml/analyze`, {
-          method: "POST", headers: h,
-          body: JSON.stringify({ session_data: { kli: 3.5, cadence: 172, asymmetry: 4.2, speed: 3.8, fatigue_slope: 0.02, cumulative_load: 1200 } }),
-        }),
       ]);
-      const sd = await sR.json(); const std = await stR.json(); const mld = await mlR.json();
-      setSessions(sd.sessions || []); setStats(std); setMlData(mld);
+      const sd = await sR.json();
+      const std = await stR.json();
+      setSessions(sd.sessions || []);
+      setStats(std);
+
+      // Llamar ML analyze-history para obtener predicciones actualizadas
+      const mlR = await fetch(`${API}/sessions/ml/analyze-history`, {
+        method: "POST", headers: h,
+      });
+      const mld = await mlR.json();
+      if (mld.latest) setMlData(mld.latest);
+
     } catch { setError("Error cargando datos"); }
     setLoading(false);
   };
@@ -302,7 +308,7 @@ export default function Dashboard() {
 
   const chartData = sessions.slice(0, 20).reverse().map((s, i) => ({
     name: `S${i + 1}`, cadencia: s.cadence || 0,
-    kli: s.kli || 0, distancia: s.distance ? +(s.distance / 1000).toFixed(2) : 0,
+    kli: s.kli || 0, distancia: s.distance_km ? +(+s.distance_km).toFixed(2) : 0,
   }));
 
   const radarData = stats ? [
@@ -377,7 +383,7 @@ export default function Dashboard() {
 
                 {mlData && (
                   <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20, flex: 1, display: "flex", gap: 24, alignItems: "center" }}>
-                    <RingGauge pct={Math.round((mlData.injury_risk?.probability || 0) * 100)} label="Riesgo" color={mlData.injury_risk?.level === "LOW" ? C.lime : "#ff4444"} />
+                    <RingGauge pct={Math.round(mlData.injury_risk?.probability || 0)} label="Riesgo" color={mlData.injury_risk?.level === "LOW" ? C.lime : "#ff4444"} />
                     <RingGauge pct={mlData.recovery?.recovery_score || 0} label="Recovery" />
                     <div style={{ flex: 1 }}>
                       <MiniBar label="Confianza ML" value={Math.round((mlData.injury_risk?.confidence || 0) * 100)} max={100} />
@@ -480,7 +486,7 @@ export default function Dashboard() {
                   <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{s.activity_name || s.device || "Sesión"}</div>
                   <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{s.date?.slice(0, 10)} · {s.activity_type || "Run"}</div>
                 </div>
-                <div style={{ ...mono, fontSize: 13, color: C.lime, paddingTop: 2 }}>{fmt.distance(s.distance)}</div>
+                <div style={{ ...mono, fontSize: 13, color: C.lime, paddingTop: 2 }}>{fmt.distance(s.distance_km)}</div>
                 <div style={{ ...mono, fontSize: 13, color: C.text, paddingTop: 2 }}>{fmt.duration(s.duration)}</div>
                 <div style={{ ...mono, fontSize: 13, color: C.text, paddingTop: 2 }}>{fmt.pace(s.speed) !== "—" ? `${fmt.pace(s.speed)}` : "—"}</div>
                 <div style={{ ...mono, fontSize: 13, color: s.kli_status === "OK" ? C.lime : "#ff4444", paddingTop: 2 }}>{s.kli?.toFixed(1) || "—"}</div>
